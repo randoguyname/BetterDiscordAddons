@@ -1,5 +1,6 @@
 /**
  * @name Hyde
+ * @version 1.1
  * @authorId 278543574059057154
  * @invite Jx3TjNS
  * @website https://github.com/randoguyname/BetterDiscordAddons/tree/master/Plugins/Hyde
