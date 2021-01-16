@@ -26,8 +26,8 @@ module.exports = (_ => {
             "description": "Allow the user to censor words or block complete messages based on words in the chatwindow. NEW also allows user to add to a list of deadnames to be replaced with the actual name."
         },
         "changeLog": {
-            "added": {
-                "Deadnames": "Now has a new option for hiding deadnames; when censored, deadnames attempts to match case as well as extensions.",
+            "fixed": {
+                "Deadnames & Regex": "Stopped automatically making deadnames regex-enabled",
             }
         }
     };
@@ -437,9 +437,7 @@ module.exports = (_ => {
                             }
                             for (let dName in words.deadname) {
                                 let deadnameReplace = words.deadname[dName].empty ? "" : (words.deadname[dName].replace || replaces.deadname);
-                                let falseConfig = words.deadname[dName]
-                                falseConfig.regex = true
-                                let reg = this.createReg(dName.split("").join("+") + "+", falseConfig);
+                                let reg = this.createReg(dName.split("").join("+") + "+", Object.assign({}, words.deadname[dName], { regex: true }));
                                 let newString = [];
                                 if (dName.indexOf(" ") > -1) {
                                     if (this.testWord(string, reg)) {
