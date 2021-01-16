@@ -22,7 +22,7 @@ module.exports = (_ => {
         "info": {
             "name": "Hyde",
             "author": "DevilBro & LunaNova",
-            "version": "1.0",
+            "version": "1.1",
             "description": "Allow the user to censor words or block complete messages based on words in the chatwindow. NEW also allows user to add to a list of deadnames to be replaced with the actual name."
         },
         "changeLog": {
