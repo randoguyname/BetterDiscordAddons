@@ -1,6 +1,5 @@
 /**
  * @name Hyde
- * @version 1.1
  * @authorId 278543574059057154
  * @invite Jx3TjNS
  * @website https://github.com/randoguyname/BetterDiscordAddons/tree/master/Plugins/Hyde
@@ -17,18 +16,17 @@ function stretchString(string, length) {
     }
     return newString
 }
-
 module.exports = (_ => {
     const config = {
         "info": {
             "name": "Hyde",
             "author": "DevilBro & LunaNova",
-            "version": "1.1",
+            "version": "1.3",
             "description": "Allow the user to censor words or block complete messages based on words in the chatwindow. NEW also allows user to add to a list of deadnames to be replaced with the actual name."
         },
         "changeLog": {
             "fixed": {
-                "Deadnames & Regex": "Stopped automatically making deadnames regex-enabled",
+                "Tooltips": "Tooltips now properly function, along with support for EditUsers plugin.",
             }
         }
     };
@@ -84,7 +82,8 @@ module.exports = (_ => {
                         empty: { value: false, description: "Allow the replacevalue to be empty (ignoring the default)" },
                         case: { value: false, description: "Handle the wordvalue case sensitive" },
                         exact: { value: true, description: "Handle the wordvalue as an exact word and not as part of a word" },
-                        regex: { value: false, description: "Handle the wordvalue as a RegExp string" }
+                        regex: { value: false, description: "Handle the wordvalue as a RegExp string" },
+                        smart: { value: true, description: "Attempts to mimic case and text decoration when replacing words" }
                     },
                     replaces: {
                         blocked: { value: "~~BLOCKED~~", description: "Default replaceword for blocked messages: " },
@@ -248,6 +247,7 @@ module.exports = (_ => {
                             "Regex: Will treat the entered wordvalue as a regular expression. ",
                             BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Anchor, { href: "https://regexr.com/", children: BDFDB.LanguageUtils.LanguageStrings.HELP + "?" })
                         ],
+                        "Smart: Attempts to mimic case and text decoration when replacing words."
                     ].map(string => BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.FormComponents.FormText, {
                         type: BDFDB.LibraryComponents.FormComponents.FormTextTypes.DESCRIPTION,
                         children: string
@@ -340,13 +340,13 @@ module.exports = (_ => {
                 };
                 changeMessage(blocked, oldBlockedMessages);
                 changeMessage(censored, oldCensoredMessages);
-                changeMessage(deadname, oldDeadnameMessages)
+                changeMessage(deadname, oldDeadnameMessages);
             }
 
             processMessage(e) {
                 let repliedMessage = e.instance.props.childrenRepliedMessage;
-                if (repliedMessage && repliedMessage.props && repliedMessage.props.children && repliedMessage.props.children.props && repliedMessage.props.children.props.referencedMessage && repliedMessage.props.children.props.referencedMessage.message && (oldBlockedMessages[repliedMessage.props.children.props.referencedMessage.message.id] || oldCensoredMessages[repliedMessage.props.children.props.referencedMessage.message.id])) {
-                    let { blocked, censored, content, embeds } = this.parseMessage(repliedMessage.props.children.props.referencedMessage.message);
+                if (repliedMessage && repliedMessage.props && repliedMessage.props.children && repliedMessage.props.children.props && repliedMessage.props.children.props.referencedMessage && repliedMessage.props.children.props.referencedMessage.message && (oldBlockedMessages[repliedMessage.props.children.props.referencedMessage.message.id] || oldCensoredMessages[repliedMessage.props.children.props.referencedMessage.message.id] || oldDeadnameMessages[repliedMessage.props.children.props.referencedMessage.message.id])) {
+                    let { blocked, censored, deadname, content, embeds } = this.parseMessage(repliedMessage.props.children.props.referencedMessage.message);
                     repliedMessage.props.children.props.referencedMessage.message = new BDFDB.DiscordObjects.Message(Object.assign({}, repliedMessage.props.children.props.referencedMessage.message, { content, embeds }));
                 }
             }
@@ -358,21 +358,36 @@ module.exports = (_ => {
                         if (oldCensoredMessages[e.instance.props.message.id] && e.instance.props.message.content != oldCensoredMessages[e.instance.props.message.id].content) e.instance.props.className = BDFDB.DOMUtils.formatClassName(e.instance.props.className, BDFDB.disCN._chatfiltercensored);
                         if (oldDeadnameMessages[e.instance.props.message.id] && e.instance.props.message.content != oldDeadnameMessages[e.instance.props.message.id].content) e.instance.props.className = BDFDB.DOMUtils.formatClassName(e.instance.props.className, BDFDB.disCN._chatfiltercensored);
                     } else {
-                        if (oldBlockedMessages[e.instance.props.message.id]) e.returnvalue.props.children.push(this.createStamp(oldBlockedMessages[e.instance.props.message.id].content, "blocked"));
-                        if (oldCensoredMessages[e.instance.props.message.id]) e.returnvalue.props.children.push(this.createStamp(oldCensoredMessages[e.instance.props.message.id].content, "censored"));
-                        if (oldDeadnameMessages[e.instance.props.message.id]) e.returnvalue.props.children.push(this.createStamp("deadname", "censored"));
+                        if (e.returnvalue.props.children.push) {
+                            if (oldBlockedMessages[e.instance.props.message.id]) e.returnvalue.props.children.push(this.createStamp(oldBlockedMessages[e.instance.props.message.id].content, "blocked"));
+                            if (oldCensoredMessages[e.instance.props.message.id]) e.returnvalue.props.children.push(this.createStamp(oldCensoredMessages[e.instance.props.message.id].content, "censored"));
+                            if (oldDeadnameMessages[e.instance.props.message.id]) e.returnvalue.props.children.push(this.createStamp("deadname", "censored"));
+                        } else {
+                            if (oldBlockedMessages[e.instance.props.message.id]) e.returnvalue.props.children.props.children.push(this.createStamp(oldBlockedMessages[e.instance.props.message.id].content, "blocked"));
+                            if (oldCensoredMessages[e.instance.props.message.id]) e.returnvalue.props.children.props.children.push(this.createStamp(oldCensoredMessages[e.instance.props.message.id].content, "censored"));
+                            if (oldDeadnameMessages[e.instance.props.message.id]) e.returnvalue.props.children.props.children.push(this.createStamp("deadname", "censored"))
+                        }
                     }
                 }
             }
 
             processEmbed(e) {
-                if (e.instance.props.embed && e.instance.props.embed.censored && oldCensoredMessages[e.instance.props.embed.message_id]) {
+                if (e.instance.props.embed && (e.instance.props.embed.censored || e.instance.props.embed.deadname) && (oldCensoredMessages[e.instance.props.embed.message_id] || oldDeadnameMessages[e.instance.props.embed.message_id])) {
+                    deadname = Boolean(e.instance.props.embed.deadname)
+                    censored = Boolean(e.instance.props.embed.censored)
                     let [children, index] = BDFDB.ReactUtils.findParent(e.returnvalue, {
                         props: [
                             ["className", BDFDB.disCN.embeddescription]
                         ]
                     });
-                    if (index > -1) children[index].props.children.push(this.createStamp(oldCensoredMessages[e.instance.props.embed.message_id].embeds[e.instance.props.embed.index].rawDescription, "censored"));
+                    if (index > -1) {
+                        if (censored) {
+                            children[index].props.children.push(this.createStamp(oldCensoredMessages[e.instance.props.embed.message_id].embeds[e.instance.props.embed.index].rawDescription, "censored"));
+                        }
+                        if (deadname) {
+                            children[index].props.children.push(this.createStamp(oldDeadnameMessages[e.instance.props.embed.message_id].embeds[e.instance.props.embed.index].rawDescription, "censored"));
+                        }
+                    }
                 }
             }
 
@@ -391,8 +406,8 @@ module.exports = (_ => {
                 let blocked = false,
                     censored = false,
                     deadname = false;
-                let content = (oldBlockedMessages[message.id] || oldCensoredMessages[message.id] || {}).content || message.content;
-                let embeds = [].concat((oldBlockedMessages[message.id] || oldCensoredMessages[message.id] || {}).embeds || message.embeds);
+                let content = (oldBlockedMessages[message.id] || oldCensoredMessages[message.id] || oldDeadnameMessages[message.id] || {}).content || message.content;
+                let embeds = [].concat((oldBlockedMessages[message.id] || oldCensoredMessages[message.id] || oldDeadnameMessages[message.id] || {}).embeds || message.embeds);
                 let isContent = content && typeof content == "string";
                 if (isContent || embeds.length) {
                     let blockedReplace;
@@ -411,14 +426,14 @@ module.exports = (_ => {
                             }
                         if (blocked) break;
                     }
-                    if (blocked) return { blocked, censored, content: blockedReplace, embeds: [] };
+                    if (blocked) return { blocked, censored, deadname, content: blockedReplace, embeds: [] };
                     else {
                         let checkCensor = string => {
                             let singleCensored = false;
                             string = string.replace(/([\n\t\r])/g, " $1 ");
                             for (let cWord in words.censored) {
                                 let censoredReplace = words.censored[cWord].empty ? "" : (words.censored[cWord].replace || replaces.censored);
-                                let reg = this.createReg(cWord, words.censored[cWord]);
+                                let reg = (words.censored[cWord].smart) ? this.createReg(cWord.split("").join("+") + "+", Object.assign({}, words.censored[cWord], { regex: true })) : this.createReg(cWord, words.censored[cWord]);
                                 let newString = [];
                                 if (cWord.indexOf(" ") > -1) {
                                     if (this.testWord(string, reg)) {
@@ -431,14 +446,27 @@ module.exports = (_ => {
                                         if (this.testWord(word, reg)) {
                                             singleCensored = true;
                                             censored = true;
-                                            newString.push(censoredReplace);
+
+                                            if (words.censored[cWord].smart) {
+                                                let censorWord = words.censored[cWord].regex ? cWord.split(/[\.\+\*\?\^\$\(\)\[\]\{\}\|\\]/g).join('') : cWord;
+
+                                                let wordCase = (word.toLowerCase() == word) ? "lower" : ((word.toUpperCase() == word) ? "upper" : (word[0].toUpperCase() == word[0] && word.slice(1).toLowerCase() == word.slice(1) ? "title" : (word[0].toLowerCase() == word[0] && word.slice(1).toUpperCase() == word.slice(1) ? "invtitle" : "lower"))); // Title, iNVTITLE, UPPER, lower (default lower)
+                                                let wordDecor = word.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (word.toLowerCase() == (`${censorWord.toLowerCase().slice(0, word.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", word.split("-")[0]] : ((word.startsWith(censorWord)) && (word.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", word.length - (censorWord.length - 1)] : ["long", word.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 9], [normal, null]
+
+                                                let postCaseManipulation = (wordCase == "lower" ? censoredReplace.toLowerCase() : (wordCase == "upper" ? censoredReplace.toUpperCase() : (wordCase == "title" ? censoredReplace[0].toUpperCase() + censoredReplace.slice(1).toLowerCase() : (wordCase == "invtitle" ? censoredReplace[0].toLowerCase() + censoredReplace.slice(1).toUpperCase() : censoredReplace))))
+                                                let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1]) : postCaseManipulation))
+
+                                                newString.push(postDecorManipulation);
+                                            } else {
+                                                newString.push(censoredReplace);
+                                            }
                                         } else newString.push(word);
                                     }
                                 string = newString.join(" ");
                             }
                             for (let dName in words.deadname) {
                                 let deadnameReplace = words.deadname[dName].empty ? "" : (words.deadname[dName].replace || replaces.deadname);
-                                let reg = this.createReg(dName.split("").join("+") + "+", Object.assign({}, words.deadname[dName], { regex: true }));
+                                let reg = (words.deadname[dName].smart) ? this.createReg(dName.split("").join("+") + "+", Object.assign({}, words.deadname[dName], { regex: true })) : this.createReg(dName, words.deadname[dName]);
                                 let newString = [];
                                 if (dName.indexOf(" ") > -1) {
                                     if (this.testWord(string, reg)) {
@@ -451,17 +479,19 @@ module.exports = (_ => {
                                         if (this.testWord(word, reg)) {
                                             singleCensored = true;
                                             deadname = true;
-                                            let censorWord = words.deadname[dName].regex ? dName.split(/[\.\+\*\?\^\$\(\)\[\]\{\}\|\\]/g).join('') : dName;
+                                            if (words.deadname[dName].smart) {
+                                                let censorWord = words.deadname[dName].regex ? dName.split(/[\.\+\*\?\^\$\(\)\[\]\{\}\|\\]/g).join('') : dName;
 
-                                            let wordCase = (word.toLowerCase() == word) ? "lower" : ((word.toUpperCase() == word) ? "upper" : (word[0].toUpperCase() == word[0] && word.slice(1).toLowerCase() == word.slice(1) ? "title" : (word[0].toLowerCase() == word[0] && word.slice(1).toUpperCase() == word.slice(1) ? "invtitle" : "lower"))); // Title, iNVTITLE, UPPER, lower (default lower)
-                                            let wordDecor = word.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (word.toLowerCase() == (`${censorWord.toLowerCase().slice(0, word.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", word.split("-")[0]] : ((word.startsWith(censorWord)) && (word.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", word.length - (censorWord.length - 1)] : ["long", word.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 9], [normal, null]
+                                                let wordCase = (word.toLowerCase() == word) ? "lower" : ((word.toUpperCase() == word) ? "upper" : (word[0].toUpperCase() == word[0] && word.slice(1).toLowerCase() == word.slice(1) ? "title" : (word[0].toLowerCase() == word[0] && word.slice(1).toUpperCase() == word.slice(1) ? "invtitle" : "lower"))); // Title, iNVTITLE, UPPER, lower (default lower)
+                                                let wordDecor = word.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (word.toLowerCase() == (`${censorWord.toLowerCase().slice(0, word.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", word.split("-")[0]] : ((word.startsWith(censorWord)) && (word.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", word.length - (censorWord.length - 1)] : ["long", word.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 9], [normal, null]
 
-                                            console.log(`wordCase: ${wordCase}\nwordDecor: ${wordDecor}\n\n`)
+                                                let postCaseManipulation = (wordCase == "lower" ? deadnameReplace.toLowerCase() : (wordCase == "upper" ? deadnameReplace.toUpperCase() : (wordCase == "title" ? deadnameReplace[0].toUpperCase() + deadnameReplace.slice(1).toLowerCase() : (wordCase == "invtitle" ? deadnameReplace[0].toLowerCase() + deadnameReplace.slice(1).toUpperCase() : deadnameReplace))))
+                                                let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1]) : postCaseManipulation))
 
-                                            let postCaseManipulation = (wordCase == "lower" ? deadnameReplace.toLowerCase() : (wordCase == "upper" ? deadnameReplace.toUpperCase() : (wordCase == "title" ? deadnameReplace[0].toUpperCase() + deadnameReplace.slice(1).toLowerCase() : (wordCase == "invtitle" ? deadnameReplace[0].toLowerCase() + deadnameReplace.slice(1).toUpperCase() : deadnameReplace))))
-                                            let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1]) : postCaseManipulation))
-
-                                            newString.push(postDecorManipulation);
+                                                newString.push(postDecorManipulation);
+                                            } else {
+                                                newString.push(deadnameReplace);
+                                            }
                                         } else newString.push(word);
                                     }
                                 string = newString.join(" ");
@@ -599,7 +629,8 @@ module.exports = (_ => {
                     empty: wordConfigs.empty,
                     case: wordConfigs.case,
                     exact: values.wordvalue.indexOf(" ") > -1 ? false : wordConfigs.exact,
-                    regex: false
+                    regex: false,
+                    smart: values.choice != "blocked" ? wordConfigs.smart : false
                 };
                 BDFDB.DataUtils.save(words, this, "words");
             }
