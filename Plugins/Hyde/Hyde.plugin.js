@@ -21,12 +21,13 @@ module.exports = (_ => {
         "info": {
             "name": "Hyde",
             "author": "DevilBro & LunaNova",
-            "version": "1.3",
+            "version": "1.3.1",
             "description": "Allow the user to censor words or block complete messages based on words in the chatwindow. NEW also allows user to add to a list of deadnames to be replaced with the actual name."
         },
         "changeLog": {
             "fixed": {
-                "Tooltips": "Tooltips now properly function, along with support for EditUsers plugin.",
+                "Possessive endings": "Added possessive endings to deadnames",
+                "Improved long type (SmartHyde)": "Stretched words now stretch more faithfully to the original message",
             }
         }
     };
@@ -451,10 +452,10 @@ module.exports = (_ => {
                                                 let censorWord = words.censored[cWord].regex ? cWord.split(/[\.\+\*\?\^\$\(\)\[\]\{\}\|\\]/g).join('') : cWord;
 
                                                 let wordCase = (word.toLowerCase() == word) ? "lower" : ((word.toUpperCase() == word) ? "upper" : (word[0].toUpperCase() == word[0] && word.slice(1).toLowerCase() == word.slice(1) ? "title" : (word[0].toLowerCase() == word[0] && word.slice(1).toUpperCase() == word.slice(1) ? "invtitle" : "lower"))); // Title, iNVTITLE, UPPER, lower (default lower)
-                                                let wordDecor = word.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (word.toLowerCase() == (`${censorWord.toLowerCase().slice(0, word.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", word.split("-")[0]] : ((word.startsWith(censorWord)) && (word.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", word.length - (censorWord.length - 1)] : ["long", word.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 9], [normal, null]
+                                                let wordDecor = word.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (word.toLowerCase() == (`${censorWord.toLowerCase().slice(0, word.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", word.split("-")[0]] : ((word.startsWith(censorWord)) && (word.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", word.length - (censorWord.length - 1)] : ["long", word.length - censorWord.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 9], [normal, null]
 
                                                 let postCaseManipulation = (wordCase == "lower" ? censoredReplace.toLowerCase() : (wordCase == "upper" ? censoredReplace.toUpperCase() : (wordCase == "title" ? censoredReplace[0].toUpperCase() + censoredReplace.slice(1).toLowerCase() : (wordCase == "invtitle" ? censoredReplace[0].toLowerCase() + censoredReplace.slice(1).toUpperCase() : censoredReplace))))
-                                                let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1]) : postCaseManipulation))
+                                                let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1] + censoredReplace.length) : postCaseManipulation))
 
                                                 newString.push(postDecorManipulation);
                                             } else {
@@ -466,7 +467,8 @@ module.exports = (_ => {
                             }
                             for (let dName in words.deadname) {
                                 let deadnameReplace = words.deadname[dName].empty ? "" : (words.deadname[dName].replace || replaces.deadname);
-                                let reg = (words.deadname[dName].smart) ? this.createReg(dName.split("").join("+") + "+", Object.assign({}, words.deadname[dName], { regex: true })) : this.createReg(dName, words.deadname[dName]);
+                                let reg = (words.deadname[dName].smart) ? this.createReg(`(${dName.split("").join("+")}+)(['s]*)`, Object.assign({}, words.deadname[dName], { regex: true })) : this.createReg(dName, words.deadname[dName]);
+
                                 let newString = [];
                                 if (dName.indexOf(" ") > -1) {
                                     if (this.testWord(string, reg)) {
@@ -480,15 +482,19 @@ module.exports = (_ => {
                                             singleCensored = true;
                                             deadname = true;
                                             if (words.deadname[dName].smart) {
+                                                let regValues = reg.exec(word)
+                                                let baseWord = regValues[1]
+                                                let possessiveEnding = regValues[2]
+
                                                 let censorWord = words.deadname[dName].regex ? dName.split(/[\.\+\*\?\^\$\(\)\[\]\{\}\|\\]/g).join('') : dName;
 
-                                                let wordCase = (word.toLowerCase() == word) ? "lower" : ((word.toUpperCase() == word) ? "upper" : (word[0].toUpperCase() == word[0] && word.slice(1).toLowerCase() == word.slice(1) ? "title" : (word[0].toLowerCase() == word[0] && word.slice(1).toUpperCase() == word.slice(1) ? "invtitle" : "lower"))); // Title, iNVTITLE, UPPER, lower (default lower)
-                                                let wordDecor = word.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (word.toLowerCase() == (`${censorWord.toLowerCase().slice(0, word.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", word.split("-")[0]] : ((word.startsWith(censorWord)) && (word.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", word.length - (censorWord.length - 1)] : ["long", word.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 9], [normal, null]
+                                                let wordCase = (baseWord.toLowerCase() == baseWord) ? "lower" : ((baseWord.toUpperCase() == baseWord) ? "upper" : (baseWord[0].toUpperCase() == baseWord[0] && baseWord.slice(1).toLowerCase() == baseWord.slice(1) ? "title" : (baseWord[0].toLowerCase() == baseWord[0] && baseWord.slice(1).toUpperCase() == baseWord.slice(1) ? "invtitle" : "lower"))); // Title, iNVTITLE, UPPER, lower (default lower)
+                                                let wordDecor = baseWord.toLowerCase() == censorWord.toLowerCase() ? ["normal", null] : (baseWord.toLowerCase() == (`${censorWord.toLowerCase().slice(0, baseWord.split("-")[0])}-${censorWord.toLowerCase()}`) ? ["stutter", baseWord.split("-")[0]] : ((baseWord.startsWith(censorWord)) && (baseWord.slice(censorWord.length - 1).split('').filter((item, pos, self) => { return self.indexOf(item) == pos }).length == 1) ? ["lastletter", baseWord.length - (censorWord.length - 1)] : ["long", baseWord.length - censorWord.length])); // [st-stutter, 2], [lastleterrrrrrrr, 8], [llooonngg, 5], [normal, null]
 
                                                 let postCaseManipulation = (wordCase == "lower" ? deadnameReplace.toLowerCase() : (wordCase == "upper" ? deadnameReplace.toUpperCase() : (wordCase == "title" ? deadnameReplace[0].toUpperCase() + deadnameReplace.slice(1).toLowerCase() : (wordCase == "invtitle" ? deadnameReplace[0].toLowerCase() + deadnameReplace.slice(1).toUpperCase() : deadnameReplace))))
-                                                let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1]) : postCaseManipulation))
-
-                                                newString.push(postDecorManipulation);
+                                                let postDecorManipulation = (wordDecor[0] == "stutter" ? `${postCaseManipulation.slice(0, wordDecor[1])}-${postCaseManipulation}` : (wordDecor[0] == "lastletter") ? (postCaseManipulation.slice(0, postCaseManipulation.length - 1) + postCaseManipulation[postCaseManipulation.length - 1].repeat(wordDecor[1])) : (wordDecor[0] == "long" ? stretchString(postCaseManipulation, wordDecor[1] + deadnameReplace.length) : postCaseManipulation))
+                                                let postPossessiveEnding = postDecorManipulation + possessiveEnding
+                                                newString.push(postPossessiveEnding);
                                             } else {
                                                 newString.push(deadnameReplace);
                                             }
